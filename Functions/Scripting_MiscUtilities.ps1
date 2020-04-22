@@ -5,9 +5,8 @@ function Test-FolderCanBeCreated
     [CmdletBinding()]
     param
     (
-        [Parameter()][Alias("FldrCanBeCreated")][string]$TestPath
+        [Parameter()][string]$TestPath
     )
-
     if ((Test-Path -Path $testPath)) {return $true}
     elseif (!(Test-Path -Path $testPath))
     {
@@ -21,6 +20,7 @@ function Test-FolderCanBeCreated
             {
                 $null=(Remove-Item -Path $testPath)
             }
+            return $true
         }
         catch
         {
@@ -31,10 +31,10 @@ function Test-FolderCanBeCreated
     }
 }
 
-# SYNTAX: Get-TrimThenSubStr || TrimSubStr [-InputString || Input] <string> [-StartPosition || Start] <string> [[-NumberOfCharacters || NumChars] <string>] [[-EndPosition || End] <string>] [[-DoNotTrim || Trim] <bool>]
+# SYNTAX: Get-TrimThenSubStr || Get-TrimThenSubStr [-InputString || Input] <string> [-StartPosition || Start] <string> [[-NumberOfCharacters || NumChars] <string>] [[-EndPosition || End] <string>] [[-DoNotTrim || Trim] <bool>]
 function Get-TrimThenSubStr
 {
-    # SYNTAX: Get-TrimThenSubStr || TrimSubStr [-InputString || Input] <string> [-StartPosition || Start] <string> [[-NumberOfCharacters || NumChars] <string>] [[-EndPosition || End] <string>] [[-DoNotTrim || Trim] <bool>]
+    # SYNTAX: Get-TrimThenSubStr || Get-TrimThenSubStr [-InputString || Input] <string> [-StartPosition || Start] <string> [[-NumberOfCharacters || NumChars] <string>] [[-EndPosition || End] <string>] [[-DoNotTrim || Trim] <bool>]
 
     <#
         .SYNOPSIS
@@ -66,7 +66,6 @@ function Get-TrimThenSubStr
     #>
 
     [CmdletBinding(DefaultParameterSetName="First")]
-    [Alias("TrimSubStr","TrSubStr","TrimThenSubString")]
     param 
     (
         # Enter string 
@@ -147,32 +146,6 @@ function Get-TrimThenSubStr
     else {return $input.Trim().Substring($start,$chars)}
 }
 
-# SYNTAX: Remove-TrailingBackslash [-inputString] <string>
-function Remove-TrailingBackslash
-{
-    # SYNTAX: Remove-TrailingBackslash [-inputString] <string>
-    [CmdletBinding()]
-    param
-    (
-        [Parameter(Mandatory=$true)][string]$inputString
-    )
-
-    $trailingBackslash
-    $inputLen=$inputString.Trim().Length
-    if ($inputLen -le 1)
-    {
-        return $inputString
-    }
-    else
-    {
-        $lastChar=(Get-TrimThenSubStr -InputString $inputString ($inputLen-1) 1)
-
-        if ($lastChar -eq '\') {$return=(Get-TrimThenSubStr -InputString $inputString 0 ($inputLen-1))}
-        else {$return=$inputString}
-
-        return $return
-    }
-}
 function New-UniqueSequentialFolder
 
 {
@@ -182,8 +155,7 @@ function New-UniqueSequentialFolder
         [Parameter(Mandatory=$true)][String]$NewFolderBaseName,
         [Parameter(Mandatory=$false)][int32]$AppendedNumberTotalDigits=4,
         [Parameter(Mandatory=$false)][int32]$StartNumber=1,
-        [Parameter(Mandatory=$false)][bool]$ForceNumbering=$false,
-        [Parameter(Mandatory=$false)][bool]$ReturnNullIfNewFolderBaseNameError=$false
+        [Parameter(Mandatory=$false)][bool]$ForceNumbering=$false
     )
 
     begin
@@ -191,11 +163,10 @@ function New-UniqueSequentialFolder
         #region     Global Variable & Shortened Parameter Variable Names
 
         # Parameter Variables
-        $base=$NewFolderBaseName
+        [string]$base=$NewFolderBaseName
         $leading=$AppendedNumberTotalDigits
         $start=$StartNumber
         $force=$ForceNumbering
-        $retNullIfBaseNameErr=$ReturnNullIfNewFolderBaseNameError
 
         $uniqueFolderBaseName="UF"
         $forceUniqueFolder=$false
@@ -210,7 +181,6 @@ function New-UniqueSequentialFolder
         function BaseLengthIsInclusiveOf
         {
             [CmdletBinding()]
-            [Alias("BaseLenInclsvOf")]
             param
             (
                 [Parameter()]$low=2147483648,
@@ -224,17 +194,18 @@ function New-UniqueSequentialFolder
             if ($baseLength -ge $low -and $baseLength -le $high) {return $true} else {return $false}
         }
 
-        function baseSubStr_0_1_Is:_. {if ((BaseLenInclsvOf 0 0)) {return $false} else {return (Get-TrimThenSubStr $base 0 1) -eq "."}}
-        function baseSubStr_0_LenMinus1 {if ((BaseLenInclsvOf 0 0)){return $base} else {return Get-TrimThenSubStr $base 0 ((BaseLen)-1)}}        
-        function baseSubStr_0_2 {if ((BaseLenInclsvOf 0 1)){return $base} else{return Get-TrimThenSubStr $base 0 2}}      
-        function baseSubStr_0_2_Is:_\\ {if ((BaseLenInclsvOf 0 1)){return $false} else {return (Get-TrimThenSubStr $base 0 2) -eq "\\"}}
-        function baseSubStr_1_2 {if ((BaseLenInclsvOf 0 2)){return $base} else{return Get-TrimThenSubStr $base 1 2}}
-        function baseSubStr_1_1_Is:_: {if ((BaseLenInclsvOf 0 1)) {return $false} else {return (Get-TrimThenSubStr $base 1 1) -eq ":"}}
-        function baseSubStr_1_1_Is:_\ {if ((BaseLenInclsvOf 0 1)) {return $false} else {return (Get-TrimThenSubStr $base 1 1) -eq "\"}}
-        function baseSubStr_1_2_Is:_:\ {if ((BaseLenInclsvOf 0 2)){return $false} else {return (Get-TrimThenSubStr $base 1 2) -eq ":\"}}
-        function baseSubStr_1_2_Is:_.\ {if ((BaseLenInclsvOf 0 2)){return $false} else {return (Get-TrimThenSubStr $base 1 2) -eq ".\"}}
-        function baseSubStr_1_LenMinus1 {if ((BaseLenInclsvOf 0 1)){return $base} else {return Get-TrimThenSubStr $base 1 ((BaseLen)-1)}}
-        function baseSubStr_LenMinus1_1 {if ((BaseLenInclsvOf 0 0)){return $base} else {return Get-TrimThenSubStr $base ((BaseLen)-1) 1}}
+        function baseSubStr_0_1_Is:_. {if ((BaseLengthIsInclusiveOf 0 0)) {return $false} else {return (Get-TrimThenSubStr $base 0 1) -eq "."}}
+        function baseSubStr_0_1_Is:_\ {if ((BaseLengthIsInclusiveOf 0 0)) {return $false} else {return (Get-TrimThenSubStr $base 0 1) -eq "\"}}
+        function baseSubStr_0_LenMinus1 {if ((BaseLengthIsInclusiveOf 0 0)){return $base} else {return Get-TrimThenSubStr $base 0 ((BaseLen)-1)}}        
+        function baseSubStr_0_2 {if ((BaseLengthIsInclusiveOf 0 1)){return $base} else{return Get-TrimThenSubStr $base 0 2}}      
+        function baseSubStr_0_2_Is:_\\ {if ((BaseLengthIsInclusiveOf 0 1)){return $false} else {return (Get-TrimThenSubStr $base 0 2) -eq "\\"}}
+        #function baseSubStr_1_2 {if ((BaseLengthIsInclusiveOf 0 2)){return $base} else{return Get-TrimThenSubStr $base 1 2}}
+        function baseSubStr_1_1_Is:_: {if ((BaseLengthIsInclusiveOf 0 1)) {return $false} else {return (Get-TrimThenSubStr $base 1 1) -eq ":"}}
+        function baseSubStr_1_1_Is:_\ {if ((BaseLengthIsInclusiveOf 0 1)) {return $false} else {return (Get-TrimThenSubStr $base 1 1) -eq "\"}}
+        #function baseSubStr_1_2_Is:_:\ {if ((BaseLengthIsInclusiveOf 0 2)){return $false} else {return (Get-TrimThenSubStr $base 1 2) -eq ":\"}}
+        function baseSubStr_1_2_Is:_.\ {if ((BaseLengthIsInclusiveOf 0 2)){return $false} else {return (Get-TrimThenSubStr $base 1 2) -eq ".\"}}
+        #function baseSubStr_1_LenMinus1 {if ((BaseLengthIsInclusiveOf 0 1)){return $base} else {return Get-TrimThenSubStr $base 1 ((BaseLen)-1)}}
+        #function baseSubStr_LenMinus1_1 {if ((BaseLengthIsInclusiveOf 0 0)){return $base} else {return Get-TrimThenSubStr $base ((BaseLen)-1) 1}}
         function BasePathExists {return (Test-Path -Path "$base")}
         function BasePathIsValid {return (Test-Path $base -IsValid)}
 
@@ -278,15 +249,24 @@ function New-UniqueSequentialFolder
         if ((baseSubStr_0_2_Is:_\\))
         {
             $isValidUNCRoot=(Test-Path -Path $UNCshareRootFolder)
+            if (!($isValidUNCRoot)) {$base=".\"}
         }
-        # (BasePathExists)
-        # (BaseLenInclsvOf 2 2)
-        # (baseSubStr_1_1_Is:_:)
-        # $base.trim().Length
-        # exit
+
+
+        if (("$base".trim() -match "^[A-Za-z]:\\$") -or ("$base".trim() -match "^[A-Za-z]:$")) 
+        {}
+        elseif ($isValidUNCRoot -or !(baseSubStr_0_2_Is:_\\))
+        {
+            if (!(Test-FolderCanBeCreated $base))
+            {
+                $base=".\"
+            }
+        }
+
         # $base is current path (.\ OR .) or is invalid format --> $base=".\UniquePath"
         if ((BasePathExists))
         {
+            echo "CC"
             if ((baseSubStr_0_2_Is:_\\) -and $baseIsOnlyUNCroot -and $isValidUNCRoot) 
             {
                 $isValidUNC=$true
@@ -308,105 +288,104 @@ function New-UniqueSequentialFolder
             elseif ($base -eq '\')
             {
                 $forceUniqueFolder=$true
-                $base=(Resolve-Path).Path
+                $base=(Resolve-Path -Path "$base").Path
             }  
             # If $base exists and is root drive notated "[a-z]:\"", resolve full path
-            elseif ((BasePathExists) -and ((BaseLenInclsvOf 2 3) -and (baseSubStr_1_1_Is:_:)))
+            elseif ((BasePathExists) -and ((BaseLengthIsInclusiveOf 2 3) -and (baseSubStr_1_1_Is:_:)))
             {
                 $isRoot=$true
                 $forceUniqueFolder=$true
                 $base=(Resolve-Path -Path $base).Path
             }
             # If $base exists and is NOT root drive", resolve full path        
-            elseif ((BasePathExists) -and (BaseLenInclsvOf 4 +) -and (baseSubStr_1_1_Is:_:))
+            elseif ((BasePathExists) -and (BaseLengthIsInclusiveOf 4 +) -and (baseSubStr_1_1_Is:_:))
             {
                 $base=(Resolve-Path -Path $base).Path
             }
         }
-        
-        #elseif ((BasePathExists))
         # If $base doesn't exist AND ...
         elseif (!(BasePathExists))
         { 
+            echo "BB"
             # AND ... check if it is relative       
             if ((baseSubStr_0_1_Is:_.) -and ((baseSubStr_1_1_Is:_\) -or (baseSubStr_1_2_Is:_.\)))
             {
-                Write-Output "1"
-                write-output baseSubStr_0_1
                 $base=(Join-Path ((Resolve-Path .\).path) -ChildPath "$base")
+            }
+            elseif ((baseSubStr_1_1_Is:_:))
+            {
+                $forceUniqueFolder=$true
+                $base=(Resolve-Path -path ".\")
+            }
+            elseif ((baseSubStr_0_1_Is:_\) -and !(baseSubStr_0_2_Is:_\\))
+            {
+                echo "AA"
+                $base=([system.io.path]::getfullpath(("$base")))
             }
             elseif ((baseSubStr_0_2_Is:_\\) -and $isValidUNCRoot -and !($baseIsOnlyUNCroot))
             {
-                Write-Output "2"
                 $isValidUNC=$true
                 $base=(Join-Path $UNCshareRootFolder -ChildPath $uncFolder)
             }
-            # AND ..
-            # else
-            # {
-            #     Write-Output "3"
-            #     $base=(Get-Location).path+"\"+"$base"   
-            # }
+            else
+            {
+                $base=(Join-Path -path (Resolve-Path -Path ".\") -ChildPath "$base")
+                $base=$base
+            }
         }
 
         if (!($isValidUNC))
         {
             $base=[system.io.path]::getfullpath(("$base"))
         }
-
+        # echo "bv" (BasePathExists)  
+        # $base=($base.trim().Substring(0,$base.Trim().Length-1))
+        # echo "bv" (BasePathExists)       
         # If path does NOT exist, check if root 
         # Determine if $base includes a trailing '\' and if so, remove
         #[bool]$hasTrailingBackslash
+
         if (!($isRoot))
         {
-            $base=(Remove-TrailingBackslash -inputString $base)
+            $base=$base.TrimEnd('\')
         }
-        
     }
 
     process
     {
-echo "a"
-        if (!(BasePathExists) -and $force -eq $false) {return $base}
-echo "b"
+        if (!(BasePathExists) -and $force -eq $false) {return $base.TrimEnd('\')}
+
         if ((BasePathExists) -and $forceUniqueFolder)
         {
-            echo "c"
             $base=(Join-Path $base -ChildPath $uniqueFolderBaseName)
         }
 
         if (!(BasePathExists) -and $force -eq $true)
         {
-            echo "d"
             $formattedCounter=("{0:d$leading}" -f $start)
-            return "$base $formattedCounter"
+            return "$($base.trimend('\')) $formattedCounter"
         }
-        else {echo "e"; return $base}
 
         if ((BasePathExists))
         {    
-            if (!(Test-Path -Path $base)) {echo "f"; return $base}
+            if (!(Test-Path -Path $base)) {echo "FF $base"; return $base.trimend('\')}
             else 
             {
                 $folderExists=$true
                 while ($folderExists)
                 {
-                    echo "g"
                     $formattedCounter=("{0:d$leading}" -f $start)
-                    #Write-Output $formattedCounter
                     $newPath="$base $formattedCounter"
-                    Write-Output $newPath
                     if (Test-Path -Path "$newPath") {$start++; continue}
                     elseif (!(Test-Path -Path "$newPath"))
                     {
                         $folderExists=$false
-                        return "$newPath"
+                        return "$($newPath.trimend('\'))"
                     }
-
                 }
             }
-
         }
+        return $base.trimend('\')
     }
 
     End
