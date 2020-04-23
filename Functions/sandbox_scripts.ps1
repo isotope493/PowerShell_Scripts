@@ -8,7 +8,6 @@ function Remove-TrailingBackslashIfPresent
     )
 
     [string]$return=$null
-    [char]$trailingBackslash=$null
 
     $inputLen=$inputString.Trim().Length
     return $inputString

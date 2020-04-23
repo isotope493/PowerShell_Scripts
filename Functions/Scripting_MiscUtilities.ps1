@@ -7,26 +7,25 @@ function Test-FolderCanBeCreated
     (
         [Parameter()][string]$TestPath
     )
+
     if ((Test-Path -Path "$testPath")) {return $true}
     elseif (!(Test-Path -Path "$testPath"))
     {
         try
         {
-            # $InformationPreference=‘Ignore’
-            # $ErrorActionPreference=‘Stop’
-            $null=(New-Item -ItemType "directory" -Path "$testPath")
+            $null=((New-Item -ItemType "directory" -Path "$testPath" -ErrorAction "ContiueSilently")) 
             # Just to be safe
-            if ((Get-ChildItem "$testPath" | Measure-Object).Count -eq 0)
+            if ((Test-Path -Path "$testPath") -eq $true -and (Get-ChildItem "$testPath" | Measure-Object).Count -eq 0)
             {
                 $null=(Remove-Item -Path "$testPath")
+                return $true
             }
+
             return $true
         }
         catch
         {
-            # $InformationPreference=‘Ignore’
-            # $ErrorActionPreference=‘Stop’
-            return $false
+            return $false          
         }
     }
 }
@@ -147,7 +146,6 @@ function Get-TrimThenSubStr
 }
 
 function New-UniqueSequentialFolder
-
 {
     [CmdletBinding()]
     param
@@ -168,7 +166,7 @@ function New-UniqueSequentialFolder
         $start=$StartNumber
         $force=$ForceNumbering
 
-        $uniqueFolderBaseName="UF"
+        $uniqueFolderBaseName="Unique Folder Base"
         $forceUniqueFolder=$false
 
         #endregion  Global Variable & Shortened Parameter Variable Names
@@ -243,7 +241,7 @@ function New-UniqueSequentialFolder
             {
                 $baseIsOnlyUNCroot=$true
             }
-            $UNCshareRootFolder="\\"+("$base" -split "\\")[2]+"\"+("$base" -split "\\")[3]
+            $UNCshareRootFolder="\\"+"$uncServer"+"\"+"$uncShare"
         }
 
         if ((baseSubStr_0_2_Is:_\\))
@@ -266,7 +264,6 @@ function New-UniqueSequentialFolder
         # $base is current path (.\ OR .) or is invalid format --> $base=".\UniquePath"
         if ((BasePathExists))
         {
-            echo "CC"
             if ((baseSubStr_0_2_Is:_\\) -and $baseIsOnlyUNCroot -and $isValidUNCRoot) 
             {
                 $isValidUNC=$true
@@ -306,7 +303,6 @@ function New-UniqueSequentialFolder
         # If $base doesn't exist AND ...
         elseif (!(BasePathExists))
         { 
-            echo "BB"
             # AND ... check if it is relative       
             if ((baseSubStr_0_1_Is:_.) -and ((baseSubStr_1_1_Is:_\) -or (baseSubStr_1_2_Is:_.\)))
             {
@@ -319,7 +315,6 @@ function New-UniqueSequentialFolder
             }
             elseif ((baseSubStr_0_1_Is:_\) -and !(baseSubStr_0_2_Is:_\\))
             {
-                echo "AA"
                 $base=([system.io.path]::getfullpath(("$base")))
             }
             elseif ((baseSubStr_0_2_Is:_\\) -and $isValidUNCRoot -and !($baseIsOnlyUNCroot))
@@ -368,7 +363,7 @@ function New-UniqueSequentialFolder
 
         if ((BasePathExists))
         {    
-            if (!(Test-Path -Path "$base")) {echo "FF $base"; return "$base".trimend('\')}
+            if (!(Test-Path -Path "$base")) {return "$base".trimend('\')}
             else 
             {
                 $folderExists=$true
