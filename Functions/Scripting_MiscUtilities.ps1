@@ -1,5 +1,31 @@
 # Returns boolean; $true if folder (1) folder already exists or (2) folder doesn't exist but can be created; $false if it CANNOT be created.
 # SYNTAX: Test-FolderCanBeCreated -TestPath [string]$TestPath
+function Test-PathHasNoInvalidColons
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()][string]$pathString
+    )
+
+    #$inputStringCharArray="$pathString".ToCharArray()
+
+    $ColonCount=0
+    $lastColonPosition=$null
+
+    $counter=0
+    foreach ($i in "$pathString".ToCharArray())
+    {
+        if ($i -eq ':')
+        {
+            $colonCount++
+            $lastColonPosition=$counter
+        }
+        $counter++
+    }
+
+    if ($colonCount -gt 1 -or $lastColonPosition -eq 0 -or $lastColonPosition -gt 1) {return $false}
+    else {return $true}
+}
 function Test-FolderCanBeCreated
 {
     [CmdletBinding()]
@@ -7,13 +33,13 @@ function Test-FolderCanBeCreated
     (
         [Parameter()][string]$TestPath
     )
-
-    if ((Test-Path -Path "$testPath")) {return $true}
+    if (!(Test-PathHasNoInvalidColons "$testPath")) {return $false}
+    if ((Test-Path -Path "$testPath")) {return $true} 
     elseif (!(Test-Path -Path "$testPath"))
     {
         try
         {
-            $null=((New-Item -ItemType "directory" -Path "$testPath")) 
+            New-Item -ItemType "directory" -Path "$testPath" 
             # Just to be safe
             if ((Test-Path -Path "$testPath") -eq $true -and (Get-ChildItem "$testPath" | Measure-Object).Count -eq 0)
             {
@@ -23,6 +49,13 @@ function Test-FolderCanBeCreated
 
             return $true
         }
+        catch [System.Management.Automation.ActionPreferenceStopException]
+        {
+            if ($Error[0].Exception.GetType().Name -eq 'DriveNotFoundException') 
+            {
+                return $false 
+            }
+        }
         catch
         {
             return $false          
@@ -30,15 +63,14 @@ function Test-FolderCanBeCreated
     }
 }
 
-function PathIsWinDriveRoot
+function Test-PathIsWinDriveRoot
 {
     [CmdletBinding()]
     param
     (
         [Parameter()][string]$InputString
     ) 
-
-    if ("$InputString".trim() -match "^(\.)([\.\\]*)$")
+    if ("$InputString".trim() -match "^([\.\\]*)$")
     {
         $InputString=[System.IO.Path]::GetFullPath($InputString)
     }
@@ -46,8 +78,8 @@ function PathIsWinDriveRoot
     $condition_1=("$InputString".trim() -match "^[A-Za-z]:\\$")
     $condition_2=("$InputString".trim() -match "^[A-Za-z]:$")
     $condition_3=("$InputString".trim() -match "^\\$")
-    $condition_4=("$InputString".trim() -match "^\\$")
-    if ($condition_1 -or $condition_2 -or $condition_3 -or $condition_4)
+
+    if ($condition_1 -or $condition_2 -or $condition_3)
     {
         return $true
     }
@@ -182,23 +214,6 @@ function New-UniqueSequentialFolder
 
     begin
     { 
-        #region     Global Variable & Shortened Parameter Variable Names
-
-        # Parameter Variables
-        [string]$base=$NewFolderBaseName
-        $leading=$AppendedNumberTotalDigits
-        $start=$StartNumber
-        $force=$ForceNumbering
-
-        $uniqueFolderBaseName="Unique Folder Base"
-        $forceUniqueFolder=$false
-        $isValidUNCRoot=$false
-        $isWinDriveRoot=$false
-        $baseIsOnlyUNCroot=$false
-        $uncRootPath=""
-
-        #endregion  Global Variable & Shortened Parameter Variable Names
-
         #region     Embedded Functions
 
         # "Variables" that may change throughout script.
@@ -234,99 +249,121 @@ function New-UniqueSequentialFolder
         #function baseSubStr_LenMinus1_1 {if ((BaseLenIsInclusiveOf 0 0)){return $base} else {return Get-TrimThenSubStr $base ((BaseLen)-1) 1}}
         function BasePathExists {return (Test-Path -Path "$base")}
         function BasePathIsValid {return (Test-Path "$base" -IsValid)}
-
+        function NoNewFldr_BasePathIsRelative
+        {
+            if ((("$base" -eq '.\') -or ("$base" -eq '.')) -and !(Base2ndChar_:))
+            {
+                return $true
+            }
+            else
+            {
+                return $false
+            }
+        }
 
         #endregion  Embedded Functions  
+
+        #region     Global Variable & Shortened Parameter Variable Names
+
+        # Parameter Variables
+        [string]$base=$NewFolderBaseName
+        $leading=$AppendedNumberTotalDigits
+        $start=$StartNumber
+        $force=$ForceNumbering
+
+        # Other Variables
+        $uncServer=""
+        $uncShare=""
+        $uncRootPath=""
+        $uncRootIsValid=$false
+        $baseIsOnlyUNCroot=$false
+        $uncFolder=""
+
+        $uniqueFolderBaseName="Unique Folder Base"
+        $forceUniqueFolder=$false
+        $isWinDriveRoot=$false
+        $baseIsOnlyUNCroot=$false
+
+        
+
+        #endregion  Global Variable & Shortened Parameter Variable Names
 
         # Test if $NewFolderBaseName passed by user is in a valid format. If not, insert generic $NewFolderBaseName in current directory
         #Test-Path -Path $NewFolderBaseName
 
-
-
         # Reformat UNC
 
-        if ((BaseLeading_\\) -and !(BasePathExists))
-        {
-            $base=".\"
-        }
-        elseif ((BaseLeading_\\) -and (BasePathExists))
+        if ((BaseLeading_\\))
         {            
-            $isValidUNCRoot=$true
-            
             $uncServer=("$base" -split "\\")[2]
             $uncShare=("$base" -split "\\")[3]
 
             $uncRootPath="\\$uncServer\$uncShare"
 
-            $counter=0
-            foreach ($i in ("$base" -split "\\"))
+            if ($uncShare -ne "")
             {
-                if ($counter -le 3){}
-                elseif ($counter -eq 4)
-                {
-                    $uncFolder+=$i
-                }
-                else 
-                {
-                    $uncFolder+="\"+$i
-                }    
-                $counter++
+                $uncRootIsValid=((Test-Path -Path "$uncRootPath"))
             }
 
-            if ("$uncFolder" -eq "")
+            if ($uncRootIsValid)
             {
-                $baseIsOnlyUNCroot=$true
+                $counter=0
+                foreach ($i in ("$base" -split "\\"))
+                {
+                    if ($counter -le 3){}
+                    elseif ($counter -eq 4)
+                    {
+                        $uncFolder+=$i
+                    }
+                    else 
+                    {
+                        $uncFolder+="\"+$i
+                    }    
+                    $counter++
+                }
+    
+                if ("$uncFolder" -eq "")
+                {
+                    $baseIsOnlyUNCroot=$true
+                }
+            }
+            else
+            {
+                $base=".\"
             }
         }
 
         # Determine if $base is a Windows drive root only (e.g. "c:\"; "c:"; "\" -- NOT "c:\<something more>")
 
-        $isWinDriveRoot=Path::IsPathRooted($base)
-
+        if (!(BaseLeading_\\))
+        {
+            $isWinDriveRoot=((Test-PathIsWinDriveRoot "$base"))
+        }
+        
         # Test if $base folder can be created. In not, $base=".\"
-        if ($isValidUNCRoot -or !(BaseLeading_\\))
+        if (!($isWinDriveRoot) -and ($uncRootIsValid -or !(BaseLeading_\\)))
         {
             if (!(Test-FolderCanBeCreated "$base"))
             {
                 $base=".\"
             }
         }
-
         # $base is current path (.\ OR .) or is invalid format --> $base=".\UniquePath"
         if ((BasePathExists))
         {
-            if ($isValidUNCRoot -and $baseIsOnlyUNCroot) 
+            if ($baseIsOnlyUNCroot) 
             {
                 $forceUniqueFolder=$true
             }
-            elseif ($isValidUNCRoot -and !$baseIsOnlyUNCroot) 
-            {
-                # Do nothing
-            }
-            elseif ("$base" -eq '.\' -or "$base" -eq '.' -or !(BasePathIsValid)) 
+            elseif ((NoNewFldr_BasePathIsRelative) -or !(BasePathIsValid)) 
             {
                 $forceUniqueFolder=$true
                 $base=(Resolve-Path .\)
             }    
-            elseif (BaseLeading_\. -and (BaseLenIsInclusiveOf 0 2))
-            {
-                $isRoot=$true
-                $forceUniqueFolder=$true
-                $base=(Resolve-Path ((Get-Location).Drive.root)).path
-                echo "$base"
-            }
-            elseif ("$base" -eq '\')
+            elseif ((Test-PathIsWinDriveRoot "$base"))
             {
                 $forceUniqueFolder=$true
-                $base=(Resolve-Path -Path "$base").Path
-            }  
-            # If $base exists and is root drive notated "[a-z]:\"", resolve full path
-            elseif ((BasePathExists) -and ((BaseLenIsInclusiveOf 2 3) -and (Base2ndChar_:)))
-            {
-                echo "Asf"
-                $isRoot=$true
-                $forceUniqueFolder=$true
-                $base=(Resolve-Path -Path "$base").Path
+                $base=(Resolve-Path "$base").path
             }
             # If $base exists and is NOT root drive", resolve full path        
             elseif ((BasePathExists) -and (BaseLenIsInclusiveOf 4 +) -and (Base2ndChar_:))
@@ -337,8 +374,12 @@ function New-UniqueSequentialFolder
         # If $base doesn't exist AND ...
         elseif (!(BasePathExists))
         { 
+            if ($uncRootIsValid -and !($baseIsOnlyUNCroot))
+            {
+                $base=(Join-Path "$uncRootPath" -ChildPath "$uncFolder")
+            }
             # AND ... check if it is relative       
-            if ((BaseLeading_.) -and ((Base2ndChar_\) -or (Base2nd3rdChar_.\)))
+            elseif ((BaseLeading_.) -and ((Base2ndChar_\) -or (Base2nd3rdChar_.\)))
             {
                 $base=(Join-Path ((Resolve-Path .\).path) -ChildPath "$base")
             }
@@ -347,35 +388,30 @@ function New-UniqueSequentialFolder
                 $forceUniqueFolder=$true
                 $base=(Resolve-Path -path ".\")
             }
+            elseif ((Base2ndChar_:) -and (BaseLenIsInclusiveOf 4 +))
+            {
+                #do nothin
+            }
             elseif ((BaseLeading_\) -and !(BaseLeading_\\))
             {
-                echo "wfas"
-                $base=([system.io.path]::getfullpath(("$base")))
-            }
-            elseif ((BaseLeading_\\) -and $isValidUNCRoot -and !($baseIsOnlyUNCroot))
-            {
-                $isValidUNC=$true
-                $base=(Join-Path "$uncRootPath" -ChildPath "$uncFolder")
+                $base=(Get-Location).drive.Root.Substring(0,2)+"$base"
             }
             else
             {
-                #$base=(Join-Path -path (Resolve-Path -Path ".\") -ChildPath "$base")
-                $base="$base"
+                $base=(Join-Path -path (Resolve-Path -path .\) -ChildPath "$base")
             }
         }
+        # if (!($uncRootIsValid) -and !(BasePathExists))
+        # {
+        #     #$base=[system.io.path]::GetFullPath((Join-path -path (Resolve-Path -Path .\) -ChildPath "$base"))
+        $base=[system.io.path]::GetFullPath($base)
+        # }
+        # elseif(($uncRootIsValid))
+        # {
 
-        if (!($isValidUNC))
-        {
-            $base=[system.io.path]::getfullpath(("$base"))
-        }
-        # echo "bv" (BasePathExists)  
-        # $base=($base.trim().Substring(0,$base.Trim().Length-1))
-        # echo "bv" (BasePathExists)       
-        # If path does NOT exist, check if root 
-        # Determine if $base includes a trailing '\' and if so, remove
-        #[bool]$hasTrailingBackslash
+        # }
 
-        if (!($isRoot))
+        if (!($isWinDriveRoot))
         {
             $base="$base".TrimEnd('\')
         }
@@ -383,14 +419,16 @@ function New-UniqueSequentialFolder
 
     process
     {
-        if (!(BasePathExists) -and $force -eq $false) {return "$base".TrimEnd('\')}
-
         if ((BasePathExists) -and $forceUniqueFolder)
         {
             $base=(Join-Path "$base" -ChildPath "$uniqueFolderBaseName")
         }
 
-        if (!(BasePathExists) -and $force -eq $true)
+        if (!(BasePathExists) -and $force -eq $false)
+        {
+            return "$base".TrimEnd('\')
+        }
+        elseif (!(BasePathExists) -and $force -eq $true)
         {
             $formattedCounter=("{0:d$leading}" -f $start)
             return "$("$base".trimend('\')) $formattedCounter"
@@ -398,20 +436,16 @@ function New-UniqueSequentialFolder
 
         if ((BasePathExists))
         {    
-            if (!(BasePathExists)) {return "$base".trimend('\')}
-            else 
+            $folderExists=$true
+            while ($folderExists)
             {
-                $folderExists=$true
-                while ($folderExists)
+                $formattedCounter=("{0:d$leading}" -f $start)
+                $newPath="$base $formattedCounter"
+                if (Test-Path -Path "$newPath") {$start++; continue}
+                elseif (!(Test-Path -Path "$newPath"))
                 {
-                    $formattedCounter=("{0:d$leading}" -f $start)
-                    $newPath="$base $formattedCounter"
-                    if (Test-Path -Path "$newPath") {$start++; continue}
-                    elseif (!(Test-Path -Path "$newPath"))
-                    {
-                        $folderExists=$false
-                        return "$($newPath.trimend('\'))"
-                    }
+                    $folderExists=$false
+                    return "$($newPath.trimend('\'))"
                 }
             }
         }
