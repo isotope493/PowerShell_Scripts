@@ -1,0 +1,9 @@
+code --install-extension felipecaputo.git-project-manager                                                               code --install-extension henriiik.vscode-sort                                                                           code --install-extension maptz.regionfolder                                                                             code --install-extension ms-vscode-remote.remote-wsl                                                                    code --install-extension ms-vscode.powershell                                                                           code --install-extension Shan.code-settings-sync                                                                        code --install-extension yassh.copy-with-line-numbers 
+
+code --install-extension felipecaputo.git-project-manager
+code --install-extension henriiik.vscode-sort
+code --install-extension maptz.regionfolder
+code --install-extension ms-vscode-remote.remote-wsl
+code --install-extension ms-vscode.powershell
+code --install-extension Shan.code-settings-sync
+code --install-extension yassh.copy-with-line-numbers
